@@ -16,6 +16,7 @@ contract TestMerkleAirdrop is Test {
     bytes32 proofTwo = 0xe5ebd1e1b5a5478a944ecab36a9a954ac3b6b8216875f6524caa7a1d87096576;
     bytes32[] public PROOF = [proofOne, proofTwo];
     address user;
+    address public gasPayer;
     uint256 userPrivKey;
 
     function setUp() public {
@@ -24,12 +25,16 @@ contract TestMerkleAirdrop is Test {
         bagelToken.mint(bagelToken.owner(), AMOUNT_TO_SEND);
         bagelToken.transfer(address(merkleAirdrop), AMOUNT_TO_SEND);
         (user, userPrivKey) = makeAddrAndKey("users");
+        gasPayer = makeAddr("gasPayer");
     }
 
     function testUsersCanClaim() public {
         uint256 startingBalance = bagelToken.balanceOf(user);
-        vm.prank(user);
-        merkleAirdrop.claim(user, AMOUNT_TO_CLAIM, PROOF);
+        bytes32 digest = merkleAirdrop.getMessageHash(user, AMOUNT_TO_CLAIM);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(userPrivKey, digest);
+
+        vm.prank(gasPayer);
+        merkleAirdrop.claim(user, AMOUNT_TO_CLAIM, PROOF, v, r, s);
 
         uint256 endingBalance = bagelToken.balanceOf(user);
         console2.log("Ending balance: ", endingBalance);
